@@ -1,4 +1,4 @@
-word_list = [
+words = [
     "apple", "banana", "cherry", "grape", "orange", "mango", "peach", "pear", "plum", "melon",
     "car", "truck", "bicycle", "motorcycle", "scooter", "airplane", "helicopter", "train", "boat", "submarine",
     "dog", "cat", "lion", "tiger", "elephant", "giraffe", "zebra", "monkey", "panda", "bear",
