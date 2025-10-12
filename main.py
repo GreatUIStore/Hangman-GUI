@@ -1,107 +1,143 @@
 import pygame
 import random
-from word import word_list
+import word
 
 pygame.init()
-
-WIDTH = 600
-HEIGHT = 600
+WIDTH, HEIGHT = 600, 600
 win = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Hangman")
-
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-
-FONT = pygame.font.SysFont('arial', 48, bold=True)
-SMALL_FONT = pygame.font.SysFont('arial', 28)
+RED = (220, 0, 0)
+GREEN = (0, 170, 0)
+GRAY = (160, 160, 160)
+WORD_FONT = pygame.font.SysFont(None, 60)
+MSG_FONT = pygame.font.SysFont(None, 40)
+SMALL_FONT = pygame.font.SysFont(None, 28)
+word_to_guess = random.choice(word.words).upper()
+guessed = []
+hangman_status = 0
+max_wrong = 6
+game_over = False
+message = ""
 
 def draw_hangman(win, status):
-    pole_thickness = 8  
-    base_x = WIDTH // 2 - 100  
-    base_y = 460
+    t = 5
+    base_y = HEIGHT // 2 + 130
+    cx = WIDTH // 2
+    pygame.draw.line(win, BLACK, (cx - 100, base_y), (cx + 100, base_y), t)
+    pygame.draw.line(win, BLACK, (cx - 80, base_y), (cx - 80, base_y - 300), t)
+    pygame.draw.line(win, BLACK, (cx - 80, base_y - 300), (cx + 60, base_y - 300), t)
+    pygame.draw.line(win, BLACK, (cx + 60, base_y - 300), (cx + 60, base_y - 250), t)
+    if status > 0:
+        pygame.draw.circle(win, BLACK, (cx + 60, base_y - 230), 20, t)
+    if status > 1:
+        pygame.draw.line(win, BLACK, (cx + 60, base_y - 210), (cx + 60, base_y - 130), t)
+    if status > 2:
+        pygame.draw.line(win, BLACK, (cx + 60, base_y - 190), (cx + 30, base_y - 160), t)
+    if status > 3:
+        pygame.draw.line(win, BLACK, (cx + 60, base_y - 190), (cx + 90, base_y - 160), t)
+    if status > 4:
+        pygame.draw.line(win, BLACK, (cx + 60, base_y - 130), (cx + 30, base_y - 90), t)
+    if status > 5:
+        pygame.draw.line(win, BLACK, (cx + 60, base_y - 130), (cx + 90, base_y - 90), t)
 
-    pygame.draw.line(win, BLACK, (base_x, base_y), (base_x + 200, base_y), pole_thickness)
-    pygame.draw.line(win, BLACK, (base_x + 100, base_y), (base_x + 100, 150), pole_thickness)
-    pygame.draw.line(win, BLACK, (base_x + 100, 150), (base_x + 200, 150), pole_thickness)
-    pygame.draw.line(win, BLACK, (base_x + 200, 150), (base_x + 200, 180), pole_thickness)
+def display_word():
+    disp = ""
+    for l in word_to_guess:
+        disp += l + " " if l in guessed else "_ "
+    text = WORD_FONT.render(disp.strip(), True, BLACK)
+    rect = text.get_rect(center=(WIDTH // 2, HEIGHT - 120))
+    win.blit(text, rect)
 
-    if status > 0:  
-        pygame.draw.circle(win, BLACK, (base_x + 200, 210), 25, pole_thickness)
-    if status > 1:  
-        pygame.draw.line(win, BLACK, (base_x + 200, 235), (base_x + 200, 320), pole_thickness)
-    if status > 2:  
-        pygame.draw.line(win, BLACK, (base_x + 200, 250), (base_x + 160, 280), pole_thickness)
-    if status > 3:  
-        pygame.draw.line(win, BLACK, (base_x + 200, 250), (base_x + 240, 280), pole_thickness)
-    if status > 4:  
-        pygame.draw.line(win, BLACK, (base_x + 200, 320), (base_x + 175, 370), pole_thickness)
-    if status > 5:  
-        pygame.draw.line(win, BLACK, (base_x + 200, 320), (base_x + 225, 370), pole_thickness)
+def draw_stats():
+    correct = sum([1 for l in word_to_guess if l in guessed])
+    wrong = hangman_status
+    stats = SMALL_FONT.render(f"Correct: {correct} | Wrong: {wrong}", True, BLACK)
+    win.blit(stats, (20, 20))
 
-def draw_window(word, guessed, hangman_status):
-    win.fill(WHITE)
-    draw_hangman(win, hangman_status)
+def draw_letters():
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    cols = 13
+    start_x = 40
+    start_y = HEIGHT - 80
+    gap = 40
+    for i, letter in enumerate(alphabet):
+        color = GREEN if letter in guessed and letter in word_to_guess else RED if letter in guessed else BLACK
+        text = SMALL_FONT.render(letter, True, color)
+        row = i // cols
+        col = i % cols
+        x = start_x + col * gap
+        y = start_y + row * 35
+        win.blit(text, (x, y))
 
-    display_word = ""
-    for letter in word:
-        display_word += letter + " " if letter in guessed else "_ "
-    text = FONT.render(display_word.strip(), True, BLACK)
-    text_rect = text.get_rect(center=(WIDTH / 2, 540))
-    win.blit(text, text_rect)
+def show_message(msg, color=BLACK, y_offset=0):
+    text = MSG_FONT.render(msg, True, color)
+    rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + y_offset))
+    win.blit(text, rect)
 
-    pygame.display.update()
+def show_retry_quit():
+    text = SMALL_FONT.render("Press R to Retry    ESC to Quit", True, BLACK)
+    rect = text.get_rect(center=(WIDTH // 2, HEIGHT - 30))
+    win.blit(text, rect)
 
-def show_message(message):
-    win.fill(WHITE)
-    text = FONT.render(message, True, BLACK)
-    retry_text = SMALL_FONT.render("Press R to retry or Q to quit", True, BLACK)
-
-    win.blit(text, text.get_rect(center=(WIDTH / 2, HEIGHT / 2 - 20)))
-    win.blit(retry_text, retry_text.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 40)))
-    pygame.display.update()
-
-def main():
-    word = random.choice(word_list).upper()
+def reset_game():
+    global word_to_guess, guessed, hangman_status, game_over, message
+    word_to_guess = random.choice(word.words).upper()
     guessed = []
     hangman_status = 0
-    MAX_TRIES = 6
-    run = True
     game_over = False
+    message = ""
 
-    while run:
-        if not game_over:
-            draw_window(word, guessed, hangman_status)
+def redraw_game():
+    win.fill(WHITE)
+    draw_hangman(win, hangman_status)
+    display_word()
+    draw_letters()
+    draw_stats()
+    if not game_over:
+        footer = SMALL_FONT.render(" ", True, BLACK)
+        rect = footer.get_rect(center=(WIDTH // 2, HEIGHT - 30))
+        win.blit(footer, rect)
+    if game_over:
+        # Create blurred background
+        temp = win.copy()
+        w, h = temp.get_size()
+        small = pygame.transform.smoothscale(temp, (w//8, h//8))
+        blurred = pygame.transform.smoothscale(small, (w, h))
+        win.fill(WHITE)  # clear
+        win.blit(blurred, (0,0))
+        # Draw overlays
+        color = GREEN if message == "You Win!" else RED
+        show_message(message, color, -20)
+        show_retry_quit()
+    pygame.display.update()
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+run = True
+clock = pygame.time.Clock()
+while run:
+    clock.tick(60)
+    redraw_game()
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
                 run = False
-
-            if not game_over:
-                if event.type == pygame.KEYDOWN:
-                    letter = event.unicode.upper()
-                    if letter.isalpha() and letter not in guessed:
-                        guessed.append(letter)
-                        if letter not in word:
-                            hangman_status += 1
+            if game_over:
+                if event.key == pygame.K_r:
+                    reset_game()
             else:
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_r:
-                        main()  # restart game
-                        return
-                    elif event.key == pygame.K_q:
-                        run = False
-
-        if not game_over:
-            won = all(letter in guessed for letter in word)
-            if won:
-                show_message("You Won!")
-                game_over = True
-            elif hangman_status == MAX_TRIES:
-                show_message(f"You Lost! Word: {word}")
-                game_over = True
-
-    pygame.quit()
-
-
-if __name__ == "__main__":
-    main()
+                if event.unicode.isalpha():
+                    l = event.unicode.upper()
+                    if l not in guessed:
+                        guessed.append(l)
+                        if l not in word_to_guess:
+                            hangman_status += 1
+                            if hangman_status >= max_wrong:
+                                message = f"You Lose! Word: {word_to_guess}"
+                                game_over = True
+                        elif all(c in guessed for c in word_to_guess):
+                            message = "You Win!"
+                            game_over = True
+pygame.quit()
